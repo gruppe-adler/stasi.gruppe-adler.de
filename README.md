@@ -1,4 +1,4 @@
-# frontend
+# stasi.gruppe-adler.de
 
 ## Project setup
 ```
