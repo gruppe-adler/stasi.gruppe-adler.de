@@ -17,32 +17,51 @@
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator';
+import { Component, Vue, Prop, Watch } from 'vue-property-decorator';
 import ForumTopic from '../services/models/ForumTopic';
 import { FORUM_URI } from '../services/forum';
+
+// 0 = canceled | 1 = firm_commitment | 0.5 = commitment | -1 = no feedback | null = no data loaded
+type Line = { date: string; weekday: string; title: string; link: string; status: 0|1|0.5|-1|null };
 
 @Component
 export default class AttendanceTableVue extends Vue {
     @Prop({ default: () => [], type: Array }) private topics!: ForumTopic[];
     @Prop({ default: 0, type: Number }) private since!: number;
     @Prop({ default: () => [], type: Array }) private categories!: number[];
-    @Prop({ required: true, type: Map }) private attendance!: Map<number, 0|0.5|1|-1>; // (tid -> probability)
+    @Prop({ required: true, type: Number }) private uid!: number;
 
-    private get lines () {
-        return this.topics.reduce((acc, cur) => {
+    private lines: Line[] = [];
+
+    private created () {
+        this.updateLines();
+    }
+
+    @Watch('topics', { deep: true })
+    @Watch('uid')
+    @Watch('since')
+    @Watch('categories')
+    private updateLines () {
+        this.lines = this.topics.reduce((acc, cur) => {
             if (this.since < cur.eventDate.getTime() && (this.categories.length === 0 || this.categories.includes(cur.cid))) {
-                const val = this.attendance.get(cur.tid);
+                let status: 0|1|0.5|-1|null = null;
+
+                if (cur.attendance !== undefined) {
+                    const val = cur.attendance.get(this.uid);
+                    status = (val !== undefined) ? val : -1;
+                }
+
                 acc.push({
                     date: cur.eventDate.toISOString().substr(0, 10),
                     weekday: ['So', '<b>Mo</b>', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][cur.eventDate.getDay()],
                     title: cur.titleRaw,
                     link: `${FORUM_URI}/topic/${cur.slug}`,
-                    status: (val === undefined ? null : val)
+                    status
                 });
             }
 
             return acc;
-        }, [] as Array<{ date: string; weekday: string; title: string; link: string; status: 0|1|0.5|-1|null }>); // 0 = canceled | 1 = firm_commitment | 0.5 = commitment | -1 = no feedback | null = no data loaded
+        }, [] as Line[]);
     }
 }
 </script>

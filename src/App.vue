@@ -13,11 +13,11 @@
             />
             <AttendanceTable
                 class="grad-home__table"
-                :key="tableKey"
+                :uid="user.uid"
                 :topics="topics"
                 :since="user.joindate"
                 :categories="selectedCids"
-                :attendance="userAttendance"
+                :key="tableKey"
             />
         </template>
         <img v-else src="@/assets/placeholder.svg" style="grid-area: table; justify-self: flex-end; align-self: flex-start; margin-right: 10%; max-width: 80%;" />
@@ -45,6 +45,8 @@ import CategorySelectVue from './components/CategorySelect.vue';
 
 const SEARCH_PARAM_NAME = 'uid';
 
+let didReloadTableInLast100ms = false;
+
 @Component({
     components: {
         UserFilter: UserFilterVue,
@@ -58,11 +60,7 @@ export default class AppVue extends Vue {
     private loggedIn: boolean|null = null;
     private topics: ForumTopic[] = [];
     private categories: Array<{ cid: number|null; name: string }> = [];
-    private attendance: Map<number, Map<number, 0|0.5|1>> = new Map(); // tid -> (uid -> probability)
     private selectedCids: number[] = [];
-    private userAttendance: Map<number, 0|0.5|1|-1> = new Map();
-    private tableKey = 0;
-    private reloadedTable = false;
 
     private created () {
         this.decodeUIDfromSearchParams();
@@ -101,32 +99,21 @@ export default class AppVue extends Vue {
         const ret = await fetchEventTopics();
 
         this.topics = ret.topics;
-
-        this.loadAttendance();
+        this.topics.forEach(({ tid }) => fetchAttendance(tid).then(attendance => {
+            for (const t of this.topics) {
+                if (t.tid === tid) {
+                    t.attendance = attendance;
+                    this.reloadTable();
+                    return;
+                }
+            }
+        }));
 
         const categories: Array<{cid: number|null; name: string }> = [
             { cid: null, name: 'Alles' }
         ];
         ret.categories.forEach((name, cid) => categories.push({ name, cid }));
         this.categories = categories;
-    }
-
-    private async loadAttendance () {
-        this.topics.forEach(({ tid }) => {
-            fetchAttendance(tid).then(map => {
-                this.attendance.set(tid, map);
-
-                if (this.user !== null) {
-                    const val = map.get(this.user.uid);
-                    this.userAttendance.set(tid, val === undefined ? -1 : val);
-                    if (!this.reloadedTable) {
-                        this.reloadedTable = true;
-                        this.tableKey++;
-                        window.setTimeout(() => { this.reloadedTable = false; this.tableKey++; }, 500);
-                    };
-                }
-            });
-        });
     }
 
     @Watch('user')
@@ -141,24 +128,16 @@ export default class AppVue extends Vue {
         window.history.replaceState({ path: url.toString() }, '', url.toString());
     }
 
-    @Watch('user')
-    private loadUserAttendance () {
-        const m = new Map();
+    private tableKey = 0;
+    private reloadTable () {
+        if (!didReloadTableInLast100ms) {
+            didReloadTableInLast100ms = true;
 
-        if (this.user === null) {
-            this.userAttendance = m;
-            return;
+            window.setTimeout(() => {
+                didReloadTableInLast100ms = false;
+                this.tableKey++;
+            }, 100);
         }
-
-        const id = this.user.uid;
-
-        this.attendance.forEach((att, tid) => {
-            const val = att.get(id);
-
-            m.set(tid, val === undefined ? -1 : val);
-        });
-
-        this.userAttendance = m;
     }
 }
 </script>

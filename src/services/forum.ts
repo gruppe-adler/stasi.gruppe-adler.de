@@ -102,14 +102,51 @@ export async function fetchEventTopics (): Promise<{ topics: ForumTopic[]; categ
     };
 }
 
-export async function fetchAttendance (tid: number): Promise<Map<number, 0|0.5|1>> {
-    const m = new Map();
+/*
+    This may seem overcomplicated, but we don't want the hunderts of attendance requests
+    blocking other requests for literally minutes on slow networks, because of this we
+    limit the number of simultaneous attendance requets to MAX_RUNNING_REQUESTS
+*/
+type TopicAttendance = Map<number, 0|0.5|1>;
+const queue: Array<{
+    tid: number;
+    resolve: (value?: TopicAttendance | PromiseLike<TopicAttendance> | undefined) => void;
+    reject: (reason?: unknown) => void;
+}> = [];
+let runningRequests = 0;
+const MAX_RUNNING_REQUESTS = 5;
 
-    const { attendants } = await fetchJSON(`${FORUM_URI}/api/attendance/${tid}`, { credentials: 'include' }) as { attendants: Array<{ uid: number; probability: 0|0.5|1 }> };
+async function fetchAttendanceWork () {
+    if (runningRequests >= MAX_RUNNING_REQUESTS) return;
 
-    for (const a of attendants) {
-        m.set(a.uid, a.probability);
+    const elem = queue.shift();
+    if (elem === undefined) return;
+
+    runningRequests++;
+
+    const { resolve, reject, tid } = elem;
+
+    try {
+        const m = new Map();
+
+        const { attendants } = await fetchJSON(`${FORUM_URI}/api/attendance/${tid}`, { credentials: 'include' }) as { attendants: Array<{ uid: number; probability: 0|0.5|1 }> };
+
+        for (const a of attendants) {
+            m.set(a.uid, a.probability);
+        }
+
+        resolve(m);
+    } catch (err) {
+        reject(err);
     }
 
-    return m;
+    runningRequests--;
+    fetchAttendanceWork();
+}
+
+export function fetchAttendance (tid: number): Promise<TopicAttendance> {
+    return new Promise<TopicAttendance>((resolve, reject) => {
+        queue.push({ resolve, reject, tid });
+        fetchAttendanceWork();
+    });
 }
