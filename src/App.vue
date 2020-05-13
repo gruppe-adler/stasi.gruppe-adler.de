@@ -1,5 +1,8 @@
 <template>
-    <div class="grad-home" v-if="loggedIn === true">
+    <div v-if="loggedIn === false" style="display: flex; justify-content: center; align-items: center; height: 100%;">
+        <h1>Bitte im Forum einloggen!</h1>
+    </div>
+    <div class="grad-home" v-else-if="topics.length > 0">
         <template v-if="user !== null">
             <ForumAvatar :user="user" class="grad-home__avatar" />
             <h3 class="grad-home__username">{{user.username}}</h3>
@@ -22,9 +25,6 @@
             class="grad-home__filter"
             @select-user="user = $event"
         />
-    </div>
-    <div v-else-if="loggedIn === false" style="display: flex; justify-content: center; align-items: center; height: 100%;">
-        <h1>Bitte im Forum einloggen!</h1>
     </div>
     <div v-else style="display: flex; justify-content: center; align-items: center; height: 100%;">
         <h1>Lade...</h1>
@@ -83,7 +83,6 @@ export default class AppVue extends Vue {
         try {
             user = await fetchForumUser(uid);
         } catch (err) {
-            // TODO
             console.error(err);
             return;
         }
