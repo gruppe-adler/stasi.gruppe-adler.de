@@ -45,11 +45,6 @@ export default class UserFilterVue extends Vue {
         return str.replace(new RegExp(this.filterText, 'ig'), '<b>$&</b>');
     }
 
-    private created () {
-        // TODO
-        // this.fetchSuggetions();
-    }
-
     @Watch('filterText')
     private async fetchSuggetions () {
         if (this.controller !== null) {
@@ -61,14 +56,15 @@ export default class UserFilterVue extends Vue {
         this.controller = new AbortController();
         this.loading = true;
         try {
+            this.suggestions = [];
             const s = await fetchUserSuggetions(this.filterText, this.controller);
             this.suggestions = s.slice(0, 10);
             this.updateSelected(0);
         } catch (err) {
             if (err.name !== 'AbortError') {
                 console.error(err);
-                return;
             };
+            return;
         }
         this.loading = false;
         this.controller = null;
