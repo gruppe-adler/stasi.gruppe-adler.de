@@ -6,7 +6,7 @@
             placeholder="Nutzer suchen..."
         />
         <div>
-            <div v-if="suggestions.length === 0" style="pointer-events: none; opacity: 50%; display: flex; justify-content: center;">
+            <div v-if="suggestions.length === 0" style="pointer-events: none; opacity: .5; display: flex; justify-content: center;">
                 <template v-if="loading">
                     Lade Vorschläge...
                 </template>

@@ -131,12 +131,12 @@ export default class AttendanceTableVue extends Vue {
     a {
         margin-left: 0.5rem;
         color: #d18d1f;
-        opacity: 50%;
+        opacity: .5;
         text-decoration: none;
         transition: opacity 0.1s ease-in-out;
 
         &:hover {
-            opacity: 100%;
+            opacity: 1;
         }
     }
 }
