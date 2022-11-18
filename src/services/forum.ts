@@ -16,7 +16,7 @@ export async function fetchForumUser (uid: number): Promise<ForumUser|null> {
 }
 
 export async function fetchUserSuggetions (str: string, controller: AbortController): Promise<ForumUser[]> {
-    const { users } = await fetchJSON(`${FORUM_URI}/api/users?term=${window.encodeURIComponent(str)}`, { credentials: 'include', signal: controller.signal }) as {
+    const { users } = await fetchJSON(`${FORUM_URI}/api/users?query=${window.encodeURIComponent(str)}`, { credentials: 'include', signal: controller.signal }) as {
         matchCount: number;
         pageCount: number;
         users: ForumUser[];
