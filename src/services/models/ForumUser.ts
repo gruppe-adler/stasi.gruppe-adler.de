@@ -1,5 +1,5 @@
 export default interface ForumUser {
-    uid: number,
+    uid: number;
     username: string;
     joindate: number;
     picture: string|null;

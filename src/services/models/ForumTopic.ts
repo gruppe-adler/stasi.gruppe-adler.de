@@ -4,5 +4,5 @@ export default interface ForumTopic {
     slug: string;
     eventDate: Date;
     cid: number;
-    attendance?: Map<number, 0|0.5|1>
+    attendance?: Map<number, 0|0.5|1>;
 }
