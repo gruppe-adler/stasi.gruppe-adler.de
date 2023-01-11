@@ -1,102 +1,97 @@
 <template>
-    <div class="grad-user-filter" @keydown.down="updateSelected(1)"  @keydown.up="updateSelected(-1)" @keydown.enter="confirmSelection()">
-        <input
-            type="text"
-            v-model="filterText"
-            placeholder="Nutzer suchen..."
-        />
+    <div class="grad-user-filter" @keydown.down="updateSelected(1)" @keydown.up="updateSelected(-1)" @keydown.enter="confirmSelection()">
+        <input type="text" v-model="filterText" placeholder="Nutzer suchen..." />
         <div>
-            <div v-if="suggestions.length === 0" style="pointer-events: none; opacity: .5; display: flex; justify-content: center;">
-                <template v-if="loading">
-                    Lade Vorschläge...
-                </template>
-                <template v-else>
-                    Keine Nutzer gefunden
-                </template>
+            <div v-if="suggestions.length === 0" style="pointer-events: none; opacity: 0.5; display: flex; justify-content: center">
+                <template v-if="loading"> Lade Vorschläge... </template>
+                <template v-else> Keine Nutzer gefunden </template>
             </div>
-            <div v-else v-for="(s, i) in suggestions" :key="i" @click="selectUser(s)" :style="i === selectedSuggetion ? 'background-color: #CCCCCC' : ''">
-                <ForumAvatar :user="s" style="font-size: 1.5em; margin-right: 0.5em;" />
+            <div
+                v-else
+                v-for="(s, i) in suggestions"
+                :key="i"
+                @click="selectUser(s)"
+                :style="i === selectedSuggetion ? 'background-color: #CCCCCC' : ''"
+            >
+                <ForumAvatar :user="s" style="font-size: 1.5em; margin-right: 0.5em" />
                 <span v-html="resultifyUsername(s.username)"></span>
             </div>
         </div>
     </div>
 </template>
 
-<script lang="ts">
-import { Component, Vue, Watch } from 'vue-property-decorator';
-import ForumUser from '../services/models/ForumUser';
-import ForumAvatarVue from './ForumAvatar.vue';
+<script lang="ts" setup>
+import type ForumUser from '../services/models/ForumUser';
+import ForumAvatar from './ForumAvatar.vue';
 import { fetchUserSuggetions } from '../services/forum';
+import { ref, watch } from 'vue';
 
-@Component({
-    components: {
-        ForumAvatar: ForumAvatarVue
+const filterText = ref('');
+const controller = ref<AbortController | null>(null);
+const loading = ref(false);
+const suggestions = ref<ForumUser[]>([]);
+const selectedSuggetion = ref(-1);
+
+const emit = defineEmits<{
+    (event: 'select-user', user: ForumUser): void;
+}>();
+
+function resultifyUsername(str: string) {
+    return str.replace(new RegExp(filterText.value, 'ig'), '<b>$&</b>');
+}
+
+async function fetchSuggetions() {
+    if (controller.value !== null) {
+        controller.value.abort();
     }
-})
-export default class UserFilterVue extends Vue {
-    private filterText = '';
-    private controller: AbortController|null = null;
-    private loading = false;
 
-    private suggestions: ForumUser[] = [];
-    private selectedSuggetion = -1;
+    if (filterText.value.length < 2) return;
 
-    private resultifyUsername (str: string) {
-        return str.replace(new RegExp(this.filterText, 'ig'), '<b>$&</b>');
-    }
-
-    @Watch('filterText')
-    private async fetchSuggetions () {
-        if (this.controller !== null) {
-            this.controller.abort();
+    controller.value = new AbortController();
+    loading.value = true;
+    try {
+        suggestions.value = [];
+        const s = await fetchUserSuggetions(filterText.value, controller.value);
+        suggestions.value = s.slice(0, 10);
+        updateSelected(0);
+    } catch (err) {
+        if (!(err instanceof DOMException) || err.name !== 'AbortError') {
+            console.error(err);
         }
-
-        if (this.filterText.length < 2) return;
-
-        this.controller = new AbortController();
-        this.loading = true;
-        try {
-            this.suggestions = [];
-            const s = await fetchUserSuggetions(this.filterText, this.controller);
-            this.suggestions = s.slice(0, 10);
-            this.updateSelected(0);
-        } catch (err) {
-            if (err.name !== 'AbortError') {
-                console.error(err);
-            };
-            return;
-        }
-        this.loading = false;
-        this.controller = null;
+        return;
     }
+    loading.value = false;
+    controller.value = null;
+}
 
-    private selectUser (user: ForumUser) {
-        this.$emit('select-user', user);
-        this.filterText = '';
-        if (document.activeElement) {
-            (document.activeElement as HTMLElement).blur();
-        }
+watch(filterText, fetchSuggetions);
+
+function selectUser(user: ForumUser) {
+    emit('select-user', user);
+    filterText.value = '';
+    if (document.activeElement) {
+        (document.activeElement as HTMLElement).blur();
     }
+}
 
-    private updateSelected (offset: number) {
-        const index = Math.min(this.suggestions.length - 1, this.selectedSuggetion + offset);
+function updateSelected(offset: number) {
+    const index = Math.min(suggestions.value.length - 1, selectedSuggetion.value + offset);
 
-        this.selectedSuggetion = Math.max(-1, index);
-    }
+    selectedSuggetion.value = Math.max(-1, index);
+}
 
-    private confirmSelection () {
-        if (this.selectedSuggetion < 0) return;
-        if (this.selectedSuggetion > this.suggestions.length - 1) return 0;
+function confirmSelection() {
+    if (selectedSuggetion.value < 0) return;
+    if (selectedSuggetion.value > suggestions.value.length - 1) return 0;
 
-        this.selectUser(this.suggestions[this.selectedSuggetion]);
-    }
+    selectUser(suggestions.value[selectedSuggetion.value]);
 }
 </script>
 
 <style lang="scss" scoped>
 .grad-user-filter {
     position: relative;
-    background-color: #D6D4D3;
+    background-color: #d6d4d3;
     border-radius: 1.5em;
 
     > input {
@@ -129,7 +124,7 @@ export default class UserFilterVue extends Vue {
 
         // row
         > div {
-            padding: .5em .5em;
+            padding: 0.5em 0.5em;
             line-height: 1.5em;
             font-size: 1em;
             width: 100%;
@@ -137,7 +132,7 @@ export default class UserFilterVue extends Vue {
             display: flex;
 
             &:hover {
-                background-color: #CCCCCC;
+                background-color: #cccccc;
             }
         }
     }
