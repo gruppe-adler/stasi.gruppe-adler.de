@@ -1,5 +1,5 @@
 <template>
-    <div class="grad-table">
+    <div class="grad-table" :key="uid">
         <template v-for="(l, i) in lines">
             <template v-if="l.type === 'data'">
                 <i v-if="l.status === 1" class="grad-table__status material-icons" :key="`status_${i}`" style="color: #66aa66"
